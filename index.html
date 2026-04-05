@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teleprompter</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       CUSTOM TITLE BAR
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="titlebar">
+    <div id="titlebar-drag"></div>
+    <div id="window-controls">
+      <button class="win-btn" id="btn-minimize" title="Minimize">&#8722;</button>
+      <button class="win-btn" id="btn-maximize" title="Maximize">&#9633;</button>
+      <button class="win-btn" id="btn-close" title="Close">&#215;</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       EDIT VIEW
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="edit-view" class="view active">
+    <div id="edit-container">
+
+      <div id="edit-header">
+        <div id="app-logo">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="28" height="28" rx="8" fill="#4f8ef7"/>
+            <rect x="6" y="8" width="16" height="2" rx="1" fill="white"/>
+            <rect x="6" y="13" width="16" height="2" rx="1" fill="white"/>
+            <rect x="6" y="18" width="10" height="2" rx="1" fill="white"/>
+            <polygon points="22,15 26,13 26,17" fill="white"/>
+          </svg>
+        </div>
+        <h1 id="app-title">Teleprompter</h1>
+      </div>
+
+      <div id="script-area">
+        <label class="field-label" for="script-input">Script</label>
+        <textarea
+          id="script-input"
+          placeholder="Paste or type your script here…"
+          spellcheck="false"
+        ></textarea>
+      </div>
+
+      <div id="controls-grid">
+
+        <!-- Speed -->
+        <div class="control-group">
+          <label class="field-label" for="speed-slider">
+            Scroll Speed
+            <span class="value-badge" id="speed-value">50</span>
+          </label>
+          <input type="range" id="speed-slider" min="1" max="200" value="50" />
+          <div class="range-labels"><span>Slow</span><span>Fast</span></div>
+        </div>
+
+        <!-- Font size -->
+        <div class="control-group">
+          <label class="field-label" for="fontsize-slider">
+            Font Size
+            <span class="value-badge" id="fontsize-value">42px</span>
+          </label>
+          <input type="range" id="fontsize-slider" min="18" max="96" value="42" />
+          <div class="range-labels"><span>Small</span><span>Large</span></div>
+        </div>
+
+        <!-- Font family -->
+        <div class="control-group">
+          <label class="field-label" for="font-select">Font Family</label>
+          <select id="font-select">
+            <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">System UI</option>
+            <option value="Georgia, 'Times New Roman', serif">Georgia (Serif)</option>
+            <option value="'Courier New', Courier, monospace">Courier (Mono)</option>
+            <option value="Arial, Helvetica, sans-serif">Arial</option>
+            <option value="'Trebuchet MS', sans-serif">Trebuchet</option>
+          </select>
+        </div>
+
+        <!-- Pause key -->
+        <div class="control-group">
+          <label class="field-label">Pause / Resume Key</label>
+          <div id="key-picker-row">
+            <div id="key-display" class="key-badge">Space</div>
+            <button id="key-picker-btn" class="secondary-btn">Change Key</button>
+          </div>
+          <p id="key-hint" class="hint-text">Press any key while listening…</p>
+        </div>
+
+      </div>
+
+      <div id="start-row">
+        <button id="start-btn" class="primary-btn">
+          <span id="start-icon">&#9654;</span>
+          Start Prompter
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       PROMPTER VIEW
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="prompter-view" class="view">
+
+    <!-- Guide line + arrows -->
+    <div id="guide-line"></div>
+    <div class="guide-arrow" id="arrow-left">&#9658;</div>
+    <div class="guide-arrow" id="arrow-right">&#9668;</div>
+
+    <!-- Scrolling text -->
+    <div id="prompter-scroller">
+      <div id="prompter-text"></div>
+      <div id="prompter-padding-bottom"></div>
+    </div>
+
+    <!-- Top-left back button -->
+    <button id="back-btn" class="hud-btn" title="Back to Editor">
+      &#8592; Edit
+    </button>
+
+    <!-- Top-right HUD overlay -->
+    <div id="hud-overlay">
+      <div id="hud-controls">
+        <button id="play-pause-btn" class="hud-btn" title="Play / Pause">
+          <span id="play-icon">&#9646;&#9646;</span>
+        </button>
+        <div class="hud-control-row">
+          <span class="hud-label">Speed</span>
+          <input type="range" id="hud-speed" min="1" max="200" value="50" class="hud-range" />
+          <span class="hud-value" id="hud-speed-val">50</span>
+        </div>
+        <div class="hud-control-row">
+          <span class="hud-label">Size</span>
+          <input type="range" id="hud-fontsize" min="18" max="96" value="42" class="hud-range" />
+          <span class="hud-value" id="hud-fontsize-val">42px</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress bar -->
+    <div id="progress-bar-track">
+      <div id="progress-bar-fill"></div>
+    </div>
+
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
