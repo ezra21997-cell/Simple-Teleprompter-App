@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Teleprompter" />
+  <meta name="theme-color" content="#1a1a1e" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>Teleprompter</title>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       EDIT VIEW
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="edit-view" class="view active">
+    <div id="edit-container">
+
+      <div id="edit-header">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="8" fill="#4f8ef7"/>
+          <rect x="6" y="8" width="16" height="2" rx="1" fill="white"/>
+          <rect x="6" y="13" width="16" height="2" rx="1" fill="white"/>
+          <rect x="6" y="18" width="10" height="2" rx="1" fill="white"/>
+          <polygon points="22,15 26,13 26,17" fill="white"/>
+        </svg>
+        <h1 id="app-title">Teleprompter</h1>
+      </div>
+
+      <div id="script-area">
+        <label class="field-label" for="script-input">Script</label>
+        <textarea id="script-input" placeholder="Paste or type your script here…" spellcheck="false"></textarea>
+      </div>
+
+      <div id="controls-grid">
+
+        <div class="control-group">
+          <label class="field-label" for="speed-slider">
+            Scroll Speed <span class="value-badge" id="speed-value">50</span>
+          </label>
+          <input type="range" id="speed-slider" min="1" max="200" value="50" />
+          <div class="range-labels"><span>Slow</span><span>Fast</span></div>
+        </div>
+
+        <div class="control-group">
+          <label class="field-label" for="fontsize-slider">
+            Font Size <span class="value-badge" id="fontsize-value">36px</span>
+          </label>
+          <input type="range" id="fontsize-slider" min="18" max="96" value="36" />
+          <div class="range-labels"><span>Small</span><span>Large</span></div>
+        </div>
+
+        <div class="control-group span-2">
+          <label class="field-label" for="font-select">Font Family</label>
+          <select id="font-select">
+            <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">System UI</option>
+            <option value="Georgia, 'Times New Roman', serif">Georgia (Serif)</option>
+            <option value="'Courier New', Courier, monospace">Courier (Mono)</option>
+            <option value="Arial, Helvetica, sans-serif">Arial</option>
+            <option value="'Trebuchet MS', sans-serif">Trebuchet</option>
+          </select>
+        </div>
+
+      </div>
+
+      <div id="start-row">
+        <button id="start-btn" class="primary-btn">
+          &#9654; Start Prompter
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       PROMPTER VIEW
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="prompter-view" class="view">
+
+    <div id="guide-line"></div>
+    <div class="guide-arrow" id="arrow-left">&#9658;</div>
+    <div class="guide-arrow" id="arrow-right">&#9668;</div>
+
+    <div id="prompter-scroller">
+      <div id="prompter-text"></div>
+      <div id="prompter-padding-bottom"></div>
+    </div>
+
+    <button id="back-btn" class="hud-btn">&#8592; Edit</button>
+
+    <div id="hud-overlay">
+      <div id="hud-controls">
+        <button id="play-pause-btn" class="hud-btn" title="Tap screen to pause / resume">
+          <span id="play-icon">&#9646;&#9646;</span>
+        </button>
+        <div class="hud-control-row">
+          <span class="hud-label">Speed</span>
+          <input type="range" id="hud-speed" min="1" max="200" value="50" class="hud-range" />
+          <span class="hud-value" id="hud-speed-val">50</span>
+        </div>
+        <div class="hud-control-row">
+          <span class="hud-label">Size</span>
+          <input type="range" id="hud-fontsize" min="18" max="96" value="36" class="hud-range" />
+          <span class="hud-value" id="hud-fontsize-val">36px</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="tap-hint">Tap screen to pause</div>
+
+    <div id="progress-bar-track">
+      <div id="progress-bar-fill"></div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+  </script>
+</body>
+</html>
