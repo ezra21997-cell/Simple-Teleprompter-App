@@ -33,7 +33,9 @@
 
       <div id="script-area">
         <label class="field-label" for="script-input">Script</label>
-        <textarea id="script-input" placeholder="Paste or type your script here…" spellcheck="false"></textarea>
+        <div id="script-input" contenteditable="true" role="textbox"
+             spellcheck="false"
+             data-placeholder="Paste or type your script here…"></div>
       </div>
 
       <div id="controls-grid">
@@ -97,10 +99,7 @@
         <button id="play-pause-btn" class="hud-btn" title="Tap screen to pause / resume">
           <span id="play-icon">&#9646;&#9646;</span>
         </button>
-        <button id="pip-btn" class="hud-btn pip-btn" title="Picture in Picture" style="display:none">
-          &#9974; PiP
-        </button>
-        <div class="hud-control-row">
+<div class="hud-control-row">
           <span class="hud-label">Speed</span>
           <input type="range" id="hud-speed" min="1" max="200" value="50" class="hud-range" />
           <span class="hud-value" id="hud-speed-val">50</span>
@@ -114,6 +113,10 @@
     </div>
 
     <div id="tap-hint">Tap screen to pause</div>
+
+    <!-- Seek scrollbar -->
+    <input type="range" id="prompter-seek" min="0" max="1000" value="0"
+           orient="vertical" title="Seek" />
 
     <div id="progress-bar-track">
       <div id="progress-bar-fill"></div>
