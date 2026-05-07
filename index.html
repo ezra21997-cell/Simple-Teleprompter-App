@@ -41,11 +41,13 @@
 
       <div id="script-area">
         <label class="field-label" for="script-input">Script</label>
-        <textarea
+        <div
           id="script-input"
-          placeholder="Paste or type your script here…"
+          contenteditable="true"
+          role="textbox"
           spellcheck="false"
-        ></textarea>
+          data-placeholder="Paste or type your script here…"
+        ></div>
       </div>
 
       <div id="controls-grid">
@@ -143,6 +145,10 @@
         </div>
       </div>
     </div>
+
+    <!-- Seek scrollbar -->
+    <input type="range" id="prompter-seek" min="0" max="1000" value="0"
+           orient="vertical" title="Seek" />
 
     <!-- Progress bar -->
     <div id="progress-bar-track">

@@ -40,6 +40,7 @@ const hudSpeedVal    = document.getElementById('hud-speed-val');
 const hudFontsize    = document.getElementById('hud-fontsize');
 const hudFontsizeVal = document.getElementById('hud-fontsize-val');
 const progressFill   = document.getElementById('progress-bar-fill');
+const prompterSeek   = document.getElementById('prompter-seek');
 
 const btnMinimize = document.getElementById('btn-minimize');
 const btnMaximize = document.getElementById('btn-maximize');
@@ -130,17 +131,34 @@ window.electronAPI.setWatchKey('Space');
 // ─── Start Prompter ───────────────────────────────────────────────────────────
 startBtn.addEventListener('click', startPrompter);
 
+// ─── Image Paste Handler ──────────────────────────────────────────────────────
+scriptInput.addEventListener('paste', (e) => {
+  const items = Array.from(e.clipboardData.items);
+  const imageItem = items.find(item => item.type.startsWith('image/'));
+  if (!imageItem) return; // let default handle plain text paste
+
+  e.preventDefault();
+  const blob = imageItem.getAsFile();
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = `<img src="${ev.target.result}" style="max-width:100%;height:auto;display:block;margin:0.5em 0;">`;
+    document.execCommand('insertHTML', false, img);
+  };
+  reader.readAsDataURL(blob);
+});
+
 function startPrompter() {
-  state.script = scriptInput.value.trim();
-  if (!state.script) {
+  const isEmpty = scriptInput.textContent.trim() === '' && !scriptInput.querySelector('img');
+  if (isEmpty) {
     scriptInput.focus();
     scriptInput.style.borderColor = '#ff5f57';
     setTimeout(() => { scriptInput.style.borderColor = ''; }, 1200);
     return;
   }
+  state.script = scriptInput.innerHTML;
 
   // Set up prompter text
-  prompterText.textContent = state.script;
+  prompterText.innerHTML = state.script;
   prompterText.style.fontSize   = state.fontSize + 'px';
   prompterText.style.fontFamily = state.fontFamily;
 
@@ -148,6 +166,7 @@ function startPrompter() {
   state.offset    = 0;
   state.scrolling = true;
   state.lastTime  = null;
+  prompterSeek.value = 0;
   applyOffset();
 
   // Sync HUD sliders
@@ -264,7 +283,17 @@ function applyOffset() {
 function updateProgress() {
   const pct = state.maxOffset > 0 ? (state.offset / state.maxOffset) * 100 : 0;
   progressFill.style.width = Math.min(100, pct) + '%';
+  if (state.maxOffset > 0) {
+    prompterSeek.value = Math.round((state.offset / state.maxOffset) * 1000);
+  }
 }
+
+prompterSeek.addEventListener('input', () => {
+  state.offset = (parseInt(prompterSeek.value) / 1000) * state.maxOffset;
+  state.lastTime = null;
+  applyOffset();
+  updateProgress();
+});
 
 function toggleScroll() {
   state.scrolling = !state.scrolling;
