@@ -133,18 +133,23 @@ startBtn.addEventListener('click', startPrompter);
 
 // ─── Image Paste Handler ──────────────────────────────────────────────────────
 scriptInput.addEventListener('paste', (e) => {
+  e.preventDefault();
   const items = Array.from(e.clipboardData.items);
   const imageItem = items.find(item => item.type.startsWith('image/'));
-  if (!imageItem) return; // let default handle plain text paste
 
-  e.preventDefault();
-  const blob = imageItem.getAsFile();
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    const img = `<img src="${ev.target.result}" style="max-width:100%;height:auto;display:block;margin:0.5em 0;">`;
-    document.execCommand('insertHTML', false, img);
-  };
-  reader.readAsDataURL(blob);
+  if (imageItem) {
+    const blob = imageItem.getAsFile();
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = `<img src="${ev.target.result}" style="max-width:100%;height:auto;display:block;margin:0.5em 0;">`;
+      document.execCommand('insertHTML', false, img);
+    };
+    reader.readAsDataURL(blob);
+  } else {
+    // Strip all formatting — insert plain text only
+    const text = e.clipboardData.getData('text/plain');
+    document.execCommand('insertText', false, text);
+  }
 });
 
 function startPrompter() {

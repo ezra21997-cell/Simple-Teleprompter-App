@@ -288,6 +288,9 @@ select {
 
 #prompter-padding-bottom { height: 50vh; }
 
+#prompter-text,
+#prompter-text * { color: #f5f5f7 !important; }
+
 #prompter-text img {
   max-width: 100%;
   height: auto;
