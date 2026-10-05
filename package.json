@@ -2,6 +2,7 @@
   "name": "teleprompter",
   "version": "1.0.0",
   "description": "A sleek teleprompter app",
+  "author": "ezra21997-cell",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
