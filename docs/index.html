@@ -67,6 +67,17 @@
           </select>
         </div>
 
+
+        <!-- Voice follow -->
+        <div class="control-group span-2">
+          <label class="field-label" for="voice-toggle">Voice Follow</label>
+          <label class="toggle-row">
+            <input type="checkbox" id="voice-toggle" />
+            <span>Scroll to match my voice</span>
+          </label>
+          <p id="voice-hint" class="hint-text visible">Uses the microphone and your browser’s speech recognition.</p>
+        </div>
+
       </div>
 
       <div id="start-row">
@@ -86,6 +97,9 @@
     <div id="guide-line"></div>
     <div class="guide-arrow" id="arrow-left">&#9658;</div>
     <div class="guide-arrow" id="arrow-right">&#9668;</div>
+
+    <!-- Voice follow status -->
+    <div id="voice-status"></div>
 
     <div id="prompter-scroller">
       <div id="prompter-text"></div>
@@ -124,6 +138,7 @@
 
   </div>
 
+  <script src="voice-follow.js"></script>
   <script src="app.js"></script>
   <script>
     if ('serviceWorker' in navigator) {

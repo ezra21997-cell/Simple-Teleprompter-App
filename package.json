@@ -12,7 +12,12 @@
     "productName": "Teleprompter",
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "assets/icon.ico"
     },
@@ -27,13 +32,15 @@
       "main.js",
       "preload.js",
       "renderer.js",
+      "voice-follow.js",
       "index.html",
       "styles.css",
       "assets/**"
     ]
   },
   "dependencies": {
-    "uiohook-napi": "^1.5.4"
+    "uiohook-napi": "^1.5.4",
+    "vosk-browser": "^0.0.8"
   },
   "devDependencies": {
     "electron": "^28.0.0",

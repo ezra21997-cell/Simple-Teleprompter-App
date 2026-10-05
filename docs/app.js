@@ -226,6 +226,7 @@ async function startPrompter() {
     img.addEventListener('load', computeMaxOffset);
     img.addEventListener('error', computeMaxOffset);
   });
+  if (voice.enabled) startVoiceFollow();
   prompterText.style.fontSize   = state.fontSize + 'px';
   prompterText.style.fontFamily = state.fontFamily;
 
@@ -259,6 +260,7 @@ async function startPrompter() {
 // ─── Back to Edit ─────────────────────────────────────────────────────────────
 backBtn.addEventListener('click', async () => {
   stopScrollLoop();
+  stopVoiceFollow();
   setPlayState(false);
   await releaseWakeLock();
   prompterView.classList.remove('active');
@@ -296,6 +298,78 @@ hudFontsize.addEventListener('input', (e) => {
   requestAnimationFrame(computeMaxOffset);
 });
 
+
+// ─── Voice Follow integration ─────────────────────────────────────────────────
+const voiceToggle = document.getElementById('voice-toggle');
+const voiceHint   = document.getElementById('voice-hint');
+const voiceStatus = document.getElementById('voice-status');
+
+const voice = {
+  enabled: false,
+  engine:  null,
+  tracker: null,
+  words:   [],
+  index:   -1,   // currently matched word
+};
+
+if (!VoiceFollow.isSupported()) {
+  voiceToggle.disabled = true;
+  voiceHint.textContent = 'Speech recognition is not available in this browser.';
+}
+voiceToggle.addEventListener('change', () => { voice.enabled = voiceToggle.checked; });
+
+function setVoiceStatus(msg, isError) {
+  voiceStatus.textContent = msg ? '🎤 ' + msg : '';
+  voiceStatus.classList.toggle('error', !!isError);
+  voiceStatus.classList.toggle('visible', !!msg);
+}
+
+function startVoiceFollow() {
+  voice.words   = VoiceFollow.wrapWords(prompterText);
+  voice.tracker = new VoiceFollow.Tracker(voice.words);
+  voice.index   = -1;
+  voice.engine  = VoiceFollow.createEngine(onVoiceText, setVoiceStatus);
+  if (!voice.engine) { setVoiceStatus('Speech recognition unavailable', true); return; }
+  voice.engine.start().catch(err => {
+    setVoiceStatus('Could not start: ' + (err && err.message || err), true);
+    voice.engine = null;
+  });
+}
+
+function stopVoiceFollow() {
+  if (voice.engine) voice.engine.stop();
+  voice.engine = null;
+  setVoiceStatus('');
+}
+
+function onVoiceText(finalText, partialText) {
+  if (!state.scrolling) return;
+  const idx = voice.tracker.update(finalText, partialText);
+  if (idx < 0 || idx === voice.index) return;
+  if (voice.index >= 0) voice.words[voice.index].el.classList.remove('vf-current');
+  voice.index = idx;
+  voice.words[idx].el.classList.add('vf-current');
+}
+
+// Offset that puts the matched word on the guide line (middle of the screen)
+function voiceTargetOffset() {
+  const el = voice.words[voice.index].el;
+  const top = el.getBoundingClientRect().top - prompterText.getBoundingClientRect().top;
+  return Math.min(state.maxOffset, Math.max(0, top + el.offsetHeight / 2 - prompterScroller.clientHeight * 0.5));
+}
+
+// After a manual seek, resume matching from the word nearest the guide line
+function syncVoiceToOffset() {
+  if (!voice.engine || !voice.words.length) return;
+  const textTop = prompterText.getBoundingClientRect().top;
+  const guide = state.offset + prompterScroller.clientHeight * 0.5;
+  let i = voice.words.findIndex(w => w.el.getBoundingClientRect().top - textTop >= guide);
+  if (i < 0) i = voice.words.length - 1;
+  if (voice.index >= 0) voice.words[voice.index].el.classList.remove('vf-current');
+  voice.index = -1;
+  voice.tracker.reset(i - 1);
+}
+
 // ─── Scroll Engine ────────────────────────────────────────────────────────────
 function computeMaxOffset() {
   state.maxOffset = prompterText.scrollHeight - (window.innerHeight * 0.5);
@@ -324,6 +398,17 @@ function tick(timestamp) {
   if (!state.lastTime) state.lastTime = timestamp;
   const delta = (timestamp - state.lastTime) / 1000;
   state.lastTime = timestamp;
+
+  if (voice.engine) {
+    computeMaxOffset();
+    if (voice.index >= 0) {
+      state.offset += (voiceTargetOffset() - state.offset) * Math.min(1, delta * 4);
+    }
+    applyOffset();
+    updateProgress();
+    state.rafId = requestAnimationFrame(tick);
+    return;
+  }
 
   state.offset += state.speed * delta;
   computeMaxOffset();
@@ -361,6 +446,7 @@ prompterSeek.addEventListener('input', (e) => {
   state.lastTime = null;
   applyOffset();
   updateProgress();
+  syncVoiceToOffset();
 });
 
 function toggleScroll() {
@@ -368,7 +454,7 @@ function toggleScroll() {
   setPlayState(state.scrolling);
   if (state.scrolling) {
     // Loop stops at the end of the script; restart it (from the top if finished)
-    if (state.offset >= state.maxOffset) { state.offset = 0; applyOffset(); updateProgress(); }
+    if (!voice.engine && state.offset >= state.maxOffset) { state.offset = 0; applyOffset(); updateProgress(); }
     if (!state.rafId) startScrollLoop();
     requestWakeLock();
   }

@@ -440,3 +440,31 @@ select {
 
 /* Scrollbar hidden */
 ::-webkit-scrollbar { display: none; }
+
+/* ── Voice follow ── */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.toggle-row input { width: 18px; height: 18px; accent-color: var(--accent); }
+#voice-hint { opacity: 1; height: auto; }
+#voice-status {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.55);
+  color: rgba(255,255,255,0.75);
+  font-size: 12px;
+  z-index: 30;
+  pointer-events: none;
+  display: none;
+}
+#voice-status.visible { display: block; }
+#voice-status.error { color: #ff8a84; }
+#prompter-text .vf-current { color: #ffd60a !important; }

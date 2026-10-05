@@ -1,9 +1,10 @@
-const CACHE = 'teleprompter-v3';
+const CACHE = 'teleprompter-v4';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './app.js',
+  './voice-follow.js',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',

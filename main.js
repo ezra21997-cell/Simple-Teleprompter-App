@@ -1,5 +1,7 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, net } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const { pathToFileURL } = require('url');
 
 let mainWindow;
 
@@ -41,6 +43,50 @@ function startHook() {
   }
 }
 
+// ─── Speech model (Voice Follow) ──────────────────────────────────────────────
+// The renderer loads the offline Vosk model from tpmodel://<file>. The first
+// request downloads it into the user-data folder; later runs work offline.
+const MODEL_BASE_URL = 'https://ccoreilly.github.io/vosk-browser/models/';
+const MODEL_FILES = new Set(['vosk-model-small-en-us-0.15.tar.gz']);
+const modelDownloads = new Map();
+
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'tpmodel', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
+]);
+
+async function ensureModel(name) {
+  const dest = path.join(app.getPath('userData'), 'models', name);
+  if (fs.existsSync(dest)) return dest;
+  if (!modelDownloads.has(name)) {
+    modelDownloads.set(name, (async () => {
+      const res = await net.fetch(MODEL_BASE_URL + name);
+      if (!res.ok) throw new Error('Model download failed: HTTP ' + res.status);
+      const buf = Buffer.from(await res.arrayBuffer());
+      await fs.promises.mkdir(path.dirname(dest), { recursive: true });
+      await fs.promises.writeFile(dest + '.part', buf);
+      await fs.promises.rename(dest + '.part', dest);
+      return dest;
+    })().finally(() => modelDownloads.delete(name)));
+  }
+  return modelDownloads.get(name);
+}
+
+function registerModelProtocol() {
+  protocol.handle('tpmodel', async (request) => {
+    const name = decodeURIComponent(new URL(request.url).hostname || '');
+    if (!MODEL_FILES.has(name)) return new Response('Not found', { status: 404 });
+    try {
+      const file = await ensureModel(name);
+      const res = await net.fetch(pathToFileURL(file).toString());
+      return new Response(res.body, {
+        headers: { 'Content-Type': 'application/gzip', 'Access-Control-Allow-Origin': '*' },
+      });
+    } catch (err) {
+      return new Response(String(err.message || err), { status: 502 });
+    }
+  });
+}
+
 // ─── Window ───────────────────────────────────────────────────────────────────
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -65,6 +111,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  registerModelProtocol();
   createWindow();
   startHook();
   app.on('activate', () => {

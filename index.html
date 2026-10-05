@@ -84,6 +84,17 @@
           </select>
         </div>
 
+
+        <!-- Voice follow -->
+        <div class="control-group">
+          <label class="field-label" for="voice-toggle">Voice Follow</label>
+          <label class="toggle-row">
+            <input type="checkbox" id="voice-toggle" />
+            <span>Scroll to match my voice</span>
+          </label>
+          <p id="voice-hint" class="hint-text visible">Uses the microphone. Runs offline after a one-time ≈40 MB model download.</p>
+        </div>
+
         <!-- Pause key -->
         <div class="control-group">
           <label class="field-label">Pause / Resume Key</label>
@@ -146,6 +157,10 @@
       </div>
     </div>
 
+
+    <!-- Voice follow status -->
+    <div id="voice-status"></div>
+
     <!-- Seek scrollbar -->
     <input type="range" id="prompter-seek" min="0" max="1000" value="0"
            orient="vertical" title="Seek" />
@@ -157,6 +172,8 @@
 
   </div>
 
+  <script src="node_modules/vosk-browser/dist/vosk.js"></script>
+  <script src="voice-follow.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>
