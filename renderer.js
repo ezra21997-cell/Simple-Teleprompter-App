@@ -131,25 +131,130 @@ window.electronAPI.setWatchKey('Space');
 // ─── Start Prompter ───────────────────────────────────────────────────────────
 startBtn.addEventListener('click', startPrompter);
 
-// ─── Image Paste Handler ──────────────────────────────────────────────────────
+// ─── Paste / Drop Handling ────────────────────────────────────────────────────
+// Rich content (e.g. from Gutenberg.org) is rebuilt from a whitelist: text is
+// inserted as text nodes, so <this>, {this} and [this] always survive literally,
+// and <img> tags are kept with safe, absolute sources. Everything else is dropped.
+const BLOCK_TAGS = new Set([
+  'P', 'DIV', 'BR', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'TR',
+  'BLOCKQUOTE', 'PRE', 'HR', 'FIGURE', 'FIGCAPTION', 'TABLE', 'UL', 'OL',
+]);
+const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'HEAD', 'TITLE', 'META', 'LINK', 'NOSCRIPT', 'TEMPLATE', 'IFRAME', 'OBJECT', 'SVG']);
+
+function safeImageSrc(src, baseUrl) {
+  if (!src) return null;
+  try {
+    const url = new URL(src, baseUrl || undefined);
+    if (url.protocol === 'http:' || url.protocol === 'https:') return url.href;
+    if (url.protocol === 'data:' && /^data:image\//i.test(src)) return src;
+  } catch (e) {}
+  return null;
+}
+
+function makeImage(src, alt) {
+  const img = document.createElement('img');
+  img.src = src;
+  if (alt) img.alt = alt;
+  return img;
+}
+
+function sanitizeHtml(html) {
+  const srcMatch = html.match(/SourceURL:(\S+)/);
+  // Windows CF_HTML clipboard data may carry a "Version:/SourceURL:" header before the markup
+  if (/^Version:/.test(html)) html = html.slice(html.indexOf('<'));
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  // Chrome puts the page URL in a SourceURL comment / <base>; use it to resolve relative image paths
+  const baseEl = doc.querySelector('base[href]');
+  const baseUrl = (baseEl && baseEl.getAttribute('href')) || (srcMatch && srcMatch[1]) || null;
+
+  const frag = document.createDocumentFragment();
+  let needBreak = false;
+
+  function addBreak() {
+    if (frag.lastChild && frag.lastChild.nodeName !== 'BR') needBreak = true;
+  }
+  function flushBreak() {
+    if (needBreak) { frag.appendChild(document.createElement('br')); needBreak = false; }
+  }
+
+  function walk(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.nodeValue.replace(/[\r\n\t ]+/g, ' ');
+      if (!text.trim() && (!frag.lastChild || frag.lastChild.nodeName === 'BR' || needBreak)) return;
+      flushBreak();
+      frag.appendChild(document.createTextNode(text));
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const tag = node.tagName.toUpperCase();
+    if (SKIP_TAGS.has(tag)) return;
+    if (tag === 'IMG') {
+      const src = safeImageSrc(node.getAttribute('src'), baseUrl);
+      if (src) {
+        flushBreak();
+        frag.appendChild(makeImage(src, node.getAttribute('alt')));
+        needBreak = false;
+      }
+      return;
+    }
+    if (tag === 'BR') { flushBreak(); frag.appendChild(document.createElement('br')); return; }
+    const isBlock = BLOCK_TAGS.has(tag);
+    if (isBlock) addBreak();
+    node.childNodes.forEach(walk);
+    if (isBlock) addBreak();
+  }
+
+  walk(doc.body);
+  return frag;
+}
+
+function insertNodeAtCursor(node) {
+  const sel = window.getSelection();
+  if (!sel.rangeCount || !scriptInput.contains(sel.anchorNode)) {
+    scriptInput.appendChild(node);
+    return;
+  }
+  const range = sel.getRangeAt(0);
+  range.deleteContents();
+  const last = node.lastChild || node;
+  range.insertNode(node);
+  range.setStartAfter(last);
+  range.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+function insertFromTransfer(dt) {
+  const imageFile = Array.from(dt.files || []).find(f => f.type.startsWith('image/')) ||
+    (Array.from(dt.items || []).find(i => i.kind === 'file' && i.type.startsWith('image/')) || { getAsFile: () => null }).getAsFile();
+  const html = dt.getData('text/html');
+
+  if (html) {
+    insertNodeAtCursor(sanitizeHtml(html));
+  } else if (imageFile) {
+    const reader = new FileReader();
+    reader.onload = (ev) => insertNodeAtCursor(makeImage(ev.target.result));
+    reader.readAsDataURL(imageFile);
+  } else {
+    // insertText treats the string literally, so bracketed text is preserved
+    document.execCommand('insertText', false, dt.getData('text/plain'));
+  }
+}
+
 scriptInput.addEventListener('paste', (e) => {
   e.preventDefault();
-  const items = Array.from(e.clipboardData.items);
-  const imageItem = items.find(item => item.type.startsWith('image/'));
+  insertFromTransfer(e.clipboardData);
+});
 
-  if (imageItem) {
-    const blob = imageItem.getAsFile();
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const img = `<img src="${ev.target.result}" style="max-width:100%;height:auto;display:block;margin:0.5em 0;">`;
-      document.execCommand('insertHTML', false, img);
-    };
-    reader.readAsDataURL(blob);
-  } else {
-    // Strip all formatting — insert plain text only
-    const text = e.clipboardData.getData('text/plain');
-    document.execCommand('insertText', false, text);
+scriptInput.addEventListener('drop', (e) => {
+  e.preventDefault();
+  scriptInput.focus();
+  // Move the caret to the drop point before inserting
+  if (document.caretRangeFromPoint) {
+    const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+    if (range) { const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range); }
   }
+  insertFromTransfer(e.dataTransfer);
 });
 
 function startPrompter() {
@@ -164,6 +269,10 @@ function startPrompter() {
 
   // Set up prompter text
   prompterText.innerHTML = state.script;
+  prompterText.querySelectorAll('img').forEach(img => {
+    img.addEventListener('load', computeMaxOffset);
+    img.addEventListener('error', computeMaxOffset);
+  });
   prompterText.style.fontSize   = state.fontSize + 'px';
   prompterText.style.fontFamily = state.fontFamily;
 
@@ -196,6 +305,7 @@ function startPrompter() {
 // ─── Back to Edit ─────────────────────────────────────────────────────────────
 backBtn.addEventListener('click', () => {
   stopScrollLoop();
+  setPlayState(false);
   prompterView.classList.remove('active');
   editView.classList.add('active');
 });
@@ -220,7 +330,9 @@ hudFontsize.addEventListener('input', () => {
 });
 
 // ─── Global toggle from main process (pause key) ──────────────────────────────
-window.electronAPI.onToggleScroll(() => toggleScroll());
+window.electronAPI.onToggleScroll(() => {
+  if (prompterView.classList.contains('active')) toggleScroll();
+});
 
 // ─── Local keyboard fallback (when window is focused) ─────────────────────────
 document.addEventListener('keydown', (e) => {
@@ -234,10 +346,8 @@ document.addEventListener('keydown', (e) => {
 
 // ─── Scroll Engine ────────────────────────────────────────────────────────────
 function computeMaxOffset() {
-  const textH   = prompterText.scrollHeight;
-  const viewH   = prompterScroller.clientHeight;
-  // We start with text at 50vh padding-top; max scroll brings last line to guide line
-  state.maxOffset = textH;
+  // Text starts below 50vh padding-top; max scroll brings the last line to the guide line
+  state.maxOffset = Math.max(0, prompterText.scrollHeight - prompterScroller.clientHeight * 0.5);
 }
 
 function startScrollLoop() {
@@ -303,6 +413,11 @@ prompterSeek.addEventListener('input', () => {
 function toggleScroll() {
   state.scrolling = !state.scrolling;
   setPlayState(state.scrolling);
+  if (state.scrolling) {
+    // Loop stops at the end of the script; restart it (from the top if finished)
+    if (state.offset >= state.maxOffset) { state.offset = 0; applyOffset(); updateProgress(); }
+    if (!state.rafId) startScrollLoop();
+  }
   if (state.scrolling) {
     state.lastTime = null; // reset delta so no jump
   }

@@ -9,7 +9,7 @@ let watchKeycode = 57; // Space scan-code default
 
 // Browser event.code → uiohook scan-code map (PC/AT Set-1 scan codes)
 const CODE_TO_SCANCODE = {
-  Escape:33,Space:57,Enter:28,Backspace:14,Tab:15,
+  Escape:1,Space:57,Enter:28,Backspace:14,Tab:15,
   CapsLock:58,
   ShiftLeft:42,ShiftRight:54,ControlLeft:29,ControlRight:3613,
   AltLeft:56,AltRight:3640,MetaLeft:3675,MetaRight:3676,
@@ -21,9 +21,9 @@ const CODE_TO_SCANCODE = {
   Digit6:7,Digit7:8,Digit8:9,Digit9:10,Digit0:11,
   F1:59,F2:60,F3:61,F4:62,F5:63,F6:64,
   F7:65,F8:66,F9:67,F10:68,F11:87,F12:88,
-  ArrowLeft:75,ArrowRight:77,ArrowUp:72,ArrowDown:80,
-  Home:71,End:79,PageUp:73,PageDown:81,
-  Insert:82,Delete:83,
+  ArrowLeft:57419,ArrowRight:57421,ArrowUp:57416,ArrowDown:57424,
+  Home:60999,End:61007,PageUp:61001,PageDown:61009,
+  Insert:61010,Delete:61011,
 };
 
 function startHook() {
