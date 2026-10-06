@@ -368,7 +368,7 @@ if (!VoiceFollow.isSupported()) {
 voiceToggle.addEventListener('change', () => { voice.enabled = voiceToggle.checked; });
 
 function setVoiceStatus(msg, isError) {
-  voiceStatus.textContent = msg ? '🎤 ' + msg : '';
+  voiceStatus.textContent = msg || '';
   voiceStatus.classList.toggle('error', !!isError);
   voiceStatus.classList.toggle('visible', !!msg);
 }
@@ -422,8 +422,8 @@ function syncVoiceToOffset() {
 
 // ─── Scroll Engine ────────────────────────────────────────────────────────────
 function computeMaxOffset() {
-  // Text starts below 50vh padding-top; max scroll brings the last line to the guide line
-  state.maxOffset = Math.max(0, prompterText.scrollHeight - prompterScroller.clientHeight * 0.5);
+  // Max scroll centres the last line on the guide line
+  state.maxOffset = Math.max(0, prompterText.scrollHeight - prompterScroller.clientHeight * 0.5 - state.fontSize * 0.75);
 }
 
 function startScrollLoop() {
@@ -557,3 +557,50 @@ function saveSession(voiceActive) {
   banner.textContent = msg;
   document.getElementById('start-row').before(banner);
 })();
+
+// ─── UI polish ────────────────────────────────────────────────────────────────
+// Slider tracks fill up to the thumb
+function paintRange(input) {
+  const pct = (input.value - input.min) / (input.max - input.min) * 100;
+  input.style.setProperty('--fill', pct + '%');
+}
+document.querySelectorAll('input[type="range"]').forEach(input => {
+  paintRange(input);
+  input.addEventListener('input', () => paintRange(input));
+});
+// Sliders changed from code (HUD <-> editor sync) don't fire 'input'; repaint on any change
+[speedSlider, fontsizeSlider, hudSpeed, hudFontsize].forEach(el => {
+  ['input', 'change'].forEach(evt => el.addEventListener(evt, () =>
+    [speedSlider, fontsizeSlider, hudSpeed, hudFontsize, prompterSeek].forEach(paintRange)));
+});
+
+// Word count and estimated read time (~150 words per minute spoken)
+const scriptMeta = document.getElementById('script-meta');
+function updateScriptMeta() {
+  const words = (scriptInput.textContent.match(/\S+/g) || []).length;
+  if (!words) { scriptMeta.textContent = ''; return; }
+  const mins = words / 150;
+  const time = mins < 1 ? '< 1 min' : Math.round(mins) + ' min';
+  scriptMeta.textContent = words.toLocaleString() + ' words · ' + time + ' read';
+}
+scriptInput.addEventListener('input', updateScriptMeta);
+new MutationObserver(updateScriptMeta).observe(scriptInput, { childList: true, subtree: true, characterData: true });
+updateScriptMeta();
+
+// Reading band matches the text size
+function syncGuideSize() {
+  prompterView.style.setProperty('--prompter-size', state.fontSize + 'px');
+}
+[fontsizeSlider, hudFontsize].forEach(el => el.addEventListener('input', syncGuideSize));
+startBtn.addEventListener('click', syncGuideSize);
+syncGuideSize();
+
+// Overlay controls fade while reading; any mouse movement brings them back
+let idleTimer = null;
+function wakeChrome() {
+  prompterView.classList.remove('idle');
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => prompterView.classList.add('idle'), 2500);
+}
+prompterView.addEventListener('mousemove', wakeChrome);
+startBtn.addEventListener('click', wakeChrome);
