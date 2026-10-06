@@ -358,8 +358,17 @@ const voice = {
   engine:  null,
   tracker: null,
   words:   [],
-  index:   -1,   // currently matched word
+  index:   -1,   // last word the recognizer confirmed
+  rate:    2.5,  // estimated reading pace, words/sec (learned from matches)
+  history: [],   // recent { t, i } matches for the pace estimate
+  lastMatchAt: 0,
+  glow:    null, // { el, x, y, w, h }
 };
+
+// Recognition lags speech by roughly this much; the glow leads by the same amount
+const VOICE_LATENCY = 0.35;  // seconds
+const VOICE_MAX_LEAD = 3;    // never run more than this many words past a confirmed match
+const VOICE_SILENCE = 1.5;   // seconds without a match = speaker paused; stop predicting
 
 if (!VoiceFollow.isSupported()) {
   voiceToggle.disabled = true;
@@ -377,6 +386,12 @@ function startVoiceFollow() {
   voice.words   = VoiceFollow.wrapWords(prompterText);
   voice.tracker = new VoiceFollow.Tracker(voice.words);
   voice.index   = -1;
+  voice.rate    = 2.5;
+  voice.history = [];
+  const glowEl = document.createElement('div');
+  glowEl.id = 'vf-glow';
+  prompterText.appendChild(glowEl);
+  voice.glow = { el: glowEl, x: 0, y: 0, w: 0, h: 0, shown: false };
   voice.engine  = VoiceFollow.createEngine(onVoiceText, setVoiceStatus);
   if (!voice.engine) { setVoiceStatus('Speech recognition unavailable', true); return; }
   voice.engine.start().catch(err => {
@@ -396,14 +411,63 @@ function onVoiceText(finalText, partialText) {
   if (!state.scrolling) return;
   const idx = voice.tracker.update(finalText, partialText);
   if (idx < 0 || idx === voice.index) return;
-  if (voice.index >= 0) voice.words[voice.index].el.classList.remove('vf-current');
+  const now = performance.now();
+  // Learn the reader's pace over the last few seconds of matches. Measuring between
+  // single updates overestimates it, because the recognizer confirms words in bursts.
+  const h = voice.history;
+  if (idx < voice.index || (h.length && now - h[h.length - 1].t > VOICE_SILENCE * 1000)) h.length = 0;  // jump back or pause: restart
+  h.push({ t: now, i: idx });
+  while (h.length > 2 && now - h[0].t > 4000) h.shift();
+  const span = (now - h[0].t) / 1000;
+  if (span >= 1.2) {
+    const pace = Math.min(7, Math.max(0.8, (idx - h[0].i) / span));
+    voice.rate = voice.rate * 0.6 + pace * 0.4;
+  }
   voice.index = idx;
-  voice.words[idx].el.classList.add('vf-current');
+  voice.lastMatchAt = now;
 }
 
-// Offset that puts the matched word on the guide line (middle of the screen)
-function voiceTargetOffset() {
-  const el = voice.words[voice.index].el;
+// Where the reader probably is right now: the last confirmed word plus however far
+// they've likely read since (pace × time), covering recognition latency. Fractional.
+function voicePredictedIndex(now) {
+  if (voice.index < 0) return -1;
+  const elapsed = (now - voice.lastMatchAt) / 1000;
+  if (elapsed > VOICE_SILENCE) return voice.index;           // paused: settle on the confirmed word
+  const lead = Math.min(VOICE_MAX_LEAD, voice.rate * (elapsed + VOICE_LATENCY));
+  return Math.min(voice.words.length - 1, voice.index + lead);
+}
+
+// Glide the amber backlight toward the predicted position, flowing between words
+function updateGlow(delta, now) {
+  const g = voice.glow;
+  if (!g) return;
+  const p = voicePredictedIndex(now);
+  if (p < 0) { g.el.style.opacity = '0'; return; }
+
+  const i = Math.floor(p), frac = p - i;
+  const a = voice.words[i].el, b = voice.words[Math.min(i + 1, voice.words.length - 1)].el;
+  let tx = a.offsetLeft, ty = a.offsetTop, tw = a.offsetWidth, th = a.offsetHeight;
+  if (b !== a && b.offsetTop === a.offsetTop) {   // same line: slide part-way to the next word
+    tx += (b.offsetLeft - a.offsetLeft) * frac;
+    tw += (b.offsetWidth - a.offsetWidth) * frac;
+  }
+
+  const lineJump = !g.shown || Math.abs(ty - g.y) > th / 2;
+  const k = lineJump ? 1 : Math.min(1, delta * 9);    // new line: jump there rather than sweep across
+  g.x += (tx - g.x) * k;  g.y += (ty - g.y) * k;
+  g.w += (tw - g.w) * k;  g.h += (th - g.h) * k;
+  g.shown = true;
+
+  const padX = th * 0.5, padY = th * 0.15;
+  g.el.style.opacity = '1';
+  g.el.style.transform = `translate(${g.x - padX}px, ${g.y - padY}px)`;
+  g.el.style.width  = (g.w + padX * 2) + 'px';
+  g.el.style.height = (g.h + padY * 2) + 'px';
+}
+
+// Offset that puts the given word on the guide line (middle of the screen)
+function voiceTargetOffset(index) {
+  const el = voice.words[index].el;
   const top = el.getBoundingClientRect().top - prompterText.getBoundingClientRect().top;
   return Math.min(state.maxOffset, Math.max(0, top + el.offsetHeight / 2 - prompterScroller.clientHeight * 0.5));
 }
@@ -415,8 +479,8 @@ function syncVoiceToOffset() {
   const guide = state.offset + prompterScroller.clientHeight * 0.5;
   let i = voice.words.findIndex(w => w.el.getBoundingClientRect().top - textTop >= guide);
   if (i < 0) i = voice.words.length - 1;
-  if (voice.index >= 0) voice.words[voice.index].el.classList.remove('vf-current');
   voice.index = -1;
+  if (voice.glow) voice.glow.shown = false;
   voice.tracker.reset(i - 1);
 }
 
@@ -451,9 +515,11 @@ function tick(timestamp) {
 
   if (voice.engine) {
     computeMaxOffset();
-    if (voice.index >= 0) {
-      state.offset += (voiceTargetOffset() - state.offset) * Math.min(1, delta * 4);
+    const predicted = voicePredictedIndex(timestamp);
+    if (predicted >= 0) {
+      state.offset += (voiceTargetOffset(Math.floor(predicted)) - state.offset) * Math.min(1, delta * 4);
     }
+    updateGlow(delta, timestamp);
     applyOffset();
     updateProgress();
     state.rafId = requestAnimationFrame(tick);

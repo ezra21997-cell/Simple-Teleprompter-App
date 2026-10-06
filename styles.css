@@ -436,7 +436,23 @@ select option { background: var(--raised); }
 
 #prompter-text,
 #prompter-text * { color: #f4f4f5 !important; }
-#prompter-text .vf-current { color: var(--accent) !important; }
+
+/* Voice Follow backlight: one soft amber glow that glides behind the words.
+   'screen' blending keeps the text white while the dark background lights up. */
+#prompter-text { position: relative; }
+#vf-glow {
+  position: absolute;
+  left: 0; top: 0;
+  width: 0; height: 0;
+  border-radius: 0.45em;
+  background: radial-gradient(closest-side, rgba(245,165,36,0.6), rgba(245,165,36,0.32) 55%, rgba(245,165,36,0) 100%);
+  filter: blur(4px);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .4s var(--ease);
+  will-change: transform, width;
+}
 
 #prompter-text img {
   max-width: 100%;
@@ -551,7 +567,7 @@ select option { background: var(--raised); }
 /* Voice status pill */
 #voice-status {
   position: fixed;
-  bottom: 22px;
+  top: 7px;          /* sits in the empty middle of the title bar */
   left: 50%;
   transform: translateX(-50%);
   padding: 6px 14px;
