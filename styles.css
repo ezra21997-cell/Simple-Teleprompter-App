@@ -560,3 +560,13 @@ select:focus { border-color: var(--accent); }
 #voice-status.visible { display: block; }
 #voice-status.error { color: #ff8a84; }
 #prompter-text .vf-current { color: #ffd60a !important; }
+
+.crash-banner {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(255, 95, 87, 0.12);
+  border: 1px solid rgba(255, 95, 87, 0.4);
+  color: #ffb3ae;
+  font-size: 13px;
+}

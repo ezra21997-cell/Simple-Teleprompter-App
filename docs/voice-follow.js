@@ -122,8 +122,11 @@ const VoiceFollow = (() => {
       }
       const needed = Math.min(tail.length, 3) * 0.8;
       if (best < 0 || bestScore < needed) return -1;
-      // Jumping backward needs strong evidence (re-reading a line)
-      if (best < this.cursor && bestScore < Math.min(tail.length, 4) * 0.9) return -1;
+      // Jumping backward (re-reading) or far ahead (skipping) needs strong evidence;
+      // a few common words like "she … in" must not yank the text down the page
+      const strong = Math.min(tail.length, 4) * 0.9;
+      if (best < this.cursor && bestScore < strong) return -1;
+      if (this.cursor >= 0 && best - this.cursor > 8 && bestScore < strong) return -1;
       this.cursor = best;
       return best;
     }

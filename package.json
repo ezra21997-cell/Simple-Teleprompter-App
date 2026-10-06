@@ -44,8 +44,8 @@
     "vosk-browser": "^0.0.8"
   },
   "devDependencies": {
-    "electron": "^28.0.0",
-    "electron-builder": "^24.9.1",
+    "electron": "^38.8.6",
+    "electron-builder": "^26.15.3",
     "electron-rebuild": "^3.2.9"
   }
 }

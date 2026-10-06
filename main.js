@@ -4,6 +4,7 @@ const fs = require('fs');
 const { pathToFileURL } = require('url');
 
 let mainWindow;
+let crashTimes = [];
 
 // ─── uiohook global (non-exclusive) keyboard listener ────────────────────────
 let uIOhook;
@@ -113,7 +114,12 @@ function createWindow() {
   mainWindow.webContents.on('render-process-gone', (event, details) => {
     const line = `${new Date().toISOString()} renderer gone: ${details.reason} (exit ${details.exitCode})\n`;
     try { fs.appendFileSync(path.join(app.getPath('userData'), 'crash.log'), line); } catch (e) {}
-    if (details.reason !== 'clean-exit' && mainWindow) mainWindow.reload();
+    // Reload with the reason so the editor can restore the script and explain; stop if it keeps crashing
+    const now = Date.now();
+    crashTimes = crashTimes.filter(t => now - t < 30000).concat(now);
+    if (details.reason !== 'clean-exit' && mainWindow && crashTimes.length <= 3) {
+      mainWindow.loadFile('index.html', { query: { crashed: details.reason } });
+    }
   });
 }
 

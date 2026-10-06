@@ -266,6 +266,7 @@ function startPrompter() {
     return;
   }
   state.script = scriptInput.innerHTML;
+  saveSession(voice.enabled);
 
   // Set up prompter text
   prompterText.innerHTML = state.script;
@@ -385,6 +386,7 @@ function startVoiceFollow() {
 }
 
 function stopVoiceFollow() {
+  saveSession(false);
   if (voice.engine) voice.engine.stop();
   voice.engine = null;
   setVoiceStatus('');
@@ -522,3 +524,36 @@ function setPlayState(playing) {
     playPauseBtn.title = 'Play';
   }
 }
+
+// ─── Crash recovery ───────────────────────────────────────────────────────────
+// The script is kept in sessionStorage so that if the page crashes, main reloads
+// it with ?crashed=<reason> and the editor comes back with the script intact.
+function saveSession(voiceActive) {
+  try {
+    sessionStorage.setItem('tp-script', scriptInput.innerHTML);
+    sessionStorage.setItem('tp-voice-active', voiceActive ? '1' : '');
+  } catch (e) {} // quota exceeded (very large pasted images) — recovery just won't restore
+}
+
+(function recoverFromCrash() {
+  const reason = new URLSearchParams(location.search).get('crashed');
+  if (!reason) return;
+  let saved = null, voiceWasActive = false;
+  try {
+    saved = sessionStorage.getItem('tp-script');
+    voiceWasActive = sessionStorage.getItem('tp-voice-active') === '1';
+  } catch (e) {}
+  if (saved) scriptInput.innerHTML = saved;
+
+  let msg = 'The prompter stopped unexpectedly (' + reason + ').';
+  if (voiceWasActive) {
+    voice.enabled = false;
+    voiceToggle.checked = false;
+    msg += ' Voice Follow was on, so it has been turned off.';
+  }
+  if (saved) msg += ' Your script was restored.';
+  const banner = document.createElement('p');
+  banner.className = 'crash-banner';
+  banner.textContent = msg;
+  document.getElementById('start-row').before(banner);
+})();
