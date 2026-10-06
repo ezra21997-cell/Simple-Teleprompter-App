@@ -10,7 +10,7 @@ const state = {
   rawKey:      ' ',      // raw key code / key for local listener
 
   scrolling:   false,
-  offset:      0,        // current translateY in px (negative = scrolled up)
+  offset:      0,        // current scroll position in px
   maxOffset:   0,        // max scroll distance
   lastTime:    null,     // for rAF delta
   rafId:       null,
@@ -477,7 +477,8 @@ function tick(timestamp) {
 }
 
 function applyOffset() {
-  prompterText.style.transform = `translateY(${-state.offset}px)`;
+  // Native scroll, not a transform: a book-length text layer exceeds GPU limits and renders black
+  prompterScroller.scrollTop = state.offset;
 }
 
 function updateProgress() {

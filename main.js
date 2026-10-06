@@ -108,6 +108,13 @@ function createWindow() {
 
   mainWindow.loadFile('index.html');
   mainWindow.on('closed', () => { mainWindow = null; });
+
+  // If the page crashes, log why and reload instead of leaving a blank window
+  mainWindow.webContents.on('render-process-gone', (event, details) => {
+    const line = `${new Date().toISOString()} renderer gone: ${details.reason} (exit ${details.exitCode})\n`;
+    try { fs.appendFileSync(path.join(app.getPath('userData'), 'crash.log'), line); } catch (e) {}
+    if (details.reason !== 'clean-exit' && mainWindow) mainWindow.reload();
+  });
 }
 
 app.whenReady().then(() => {

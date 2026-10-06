@@ -429,7 +429,8 @@ function tick(timestamp) {
 }
 
 function applyOffset() {
-  prompterText.style.transform = `translateY(${-state.offset}px)`;
+  // Native scroll, not a transform: a book-length text layer exceeds GPU limits and renders black
+  prompterScroller.scrollTop = state.offset;
 }
 
 function updateProgress() {
