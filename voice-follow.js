@@ -107,7 +107,7 @@ const VoiceFollow = (() => {
       if (this.history.length > 50) this.history = this.history.slice(-50);
       const partial = (partialText || '').split(/\s+/).map(normalize).filter(Boolean);
       const tail = this.history.concat(partial).slice(-TAIL_WORDS);
-      if (tail.length < 2 || !this.words.length) return -1;
+      if (!tail.length || !this.words.length) return -1;
 
       const from = Math.max(0, this.cursor - LOOK_BEHIND);
       const to   = Math.min(this.words.length - 1, this.cursor + LOOK_AHEAD);
@@ -120,7 +120,10 @@ const VoiceFollow = (() => {
         score -= dist >= 0 ? dist * 0.004 : -dist * 0.03;
         if (score > bestScore) { bestScore = score; best = i; }
       }
-      const needed = Math.min(tail.length, 3) * 0.8;
+      // A step of up to 4 words (incl. the script's first words) needs just one clear word;
+      // anything further needs a run of 3 so stray common words don't move the text far
+      const nearStep = best > this.cursor && best - this.cursor <= 4;
+      const needed = nearStep ? 0.8 : Math.min(tail.length, 3) * 0.8;
       if (best < 0 || bestScore < needed) return -1;
       // Jumping backward (re-reading) or far ahead (skipping) needs strong evidence;
       // a few common words like "she … in" must not yank the text down the page
