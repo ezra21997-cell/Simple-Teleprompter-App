@@ -98,6 +98,14 @@
               </span>
               <input type="checkbox" id="voice-toggle" class="switch" />
             </label>
+            <div id="voice-lead-setting">
+              <div class="setting-head">
+                <label for="lead-slider">Highlight lead</label>
+                <span class="value" id="lead-value">200 ms</span>
+              </div>
+              <input type="range" id="lead-slider" min="0" max="1000" step="25" value="200" />
+              <p class="hint-text visible">How far ahead of the recognizer the glow runs. Lower it if the glow gets ahead of you; raise it if it trails.</p>
+            </div>
           </div>
 
           <div class="divider"></div>
@@ -162,6 +170,11 @@
           <span class="hud-label">Size</span>
           <input type="range" id="hud-fontsize" min="18" max="96" value="42" class="hud-range" />
           <span class="hud-value" id="hud-fontsize-val">42px</span>
+        </div>
+        <div class="hud-control-row" id="hud-lead-row">
+          <span class="hud-label">Lead</span>
+          <input type="range" id="hud-lead" min="0" max="1000" step="25" value="200" class="hud-range" />
+          <span class="hud-value" id="hud-lead-val">200ms</span>
         </div>
       </div>
     </div>

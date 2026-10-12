@@ -365,8 +365,8 @@ const voice = {
   glow:    null, // { el, x, y, w, h }
 };
 
-// Recognition lags speech by roughly this much; the glow leads by the same amount
-const VOICE_LATENCY = 0.35;  // seconds
+// Recognition lags speech; the glow leads by a user-set amount to cover it (Highlight lead)
+let voiceLead = 0.2;         // seconds
 const VOICE_MAX_LEAD = 3;    // never run more than this many words past a confirmed match
 const VOICE_SILENCE = 1.5;   // seconds without a match = speaker paused; stop predicting
 
@@ -433,7 +433,7 @@ function voicePredictedIndex(now) {
   if (voice.index < 0) return -1;
   const elapsed = (now - voice.lastMatchAt) / 1000;
   if (elapsed > VOICE_SILENCE) return voice.index;           // paused: settle on the confirmed word
-  const lead = Math.min(VOICE_MAX_LEAD, voice.rate * (elapsed + VOICE_LATENCY));
+  const lead = Math.min(VOICE_MAX_LEAD, voice.rate * (elapsed + voiceLead));
   return Math.min(voice.words.length - 1, voice.index + lead);
 }
 
@@ -516,7 +516,8 @@ function tick(timestamp) {
   if (voice.engine) {
     computeMaxOffset();
     const predicted = voicePredictedIndex(timestamp);
-    if (predicted >= 0) {
+    // A wheel step takes priority over Voice Follow for a moment
+    if (predicted >= 0 && timestamp >= wheel.holdUntil) {
       state.offset += (voiceTargetOffset(Math.floor(predicted)) - state.offset) * Math.min(1, delta * 4);
     }
     updateGlow(delta, timestamp);
@@ -670,3 +671,109 @@ function wakeChrome() {
 }
 prompterView.addEventListener('mousemove', wakeChrome);
 startBtn.addEventListener('click', wakeChrome);
+
+// ─── Highlight lead setting (editor + HUD, remembered between launches) ──────
+const leadSlider = document.getElementById('lead-slider');
+const leadValue  = document.getElementById('lead-value');
+const hudLead    = document.getElementById('hud-lead');
+const hudLeadVal = document.getElementById('hud-lead-val');
+const hudLeadRow = document.getElementById('hud-lead-row');
+const leadSetting = document.getElementById('voice-lead-setting');
+
+function setVoiceLead(ms, save) {
+  ms = Math.max(0, Math.min(1000, Math.round(ms)));
+  voiceLead = ms / 1000;
+  leadSlider.value = hudLead.value = ms;
+  leadValue.textContent = ms + ' ms';
+  hudLeadVal.textContent = ms + 'ms';
+  paintRange(leadSlider); paintRange(hudLead);
+  if (save) { try { localStorage.setItem('tp-voice-lead', String(ms)); } catch (e) {} }
+}
+leadSlider.addEventListener('input', () => setVoiceLead(+leadSlider.value, true));
+hudLead.addEventListener('input', () => setVoiceLead(+hudLead.value, true));
+try {
+  const saved = localStorage.getItem('tp-voice-lead');
+  if (saved !== null && !isNaN(+saved)) setVoiceLead(+saved, false);
+} catch (e) {}
+
+// Lead controls only matter with Voice Follow on
+function syncLeadVisibility() {
+  leadSetting.classList.toggle('dim', !voiceToggle.checked);
+  hudLeadRow.style.display = voice.enabled ? '' : 'none';
+}
+voiceToggle.addEventListener('change', syncLeadVisibility);
+startBtn.addEventListener('click', syncLeadVisibility);
+syncLeadVisibility();
+
+// ─── Mouse wheel: one line per notch ──────────────────────────────────────────
+const wheel = { accum: 0, target: null, from: 0, start: 0, rafId: null, holdUntil: 0 };
+const WHEEL_VOICE_HOLD_MS = 2000;  // Voice Follow waits this long after a wheel step before steering again
+const WHEEL_STEP_PX = 100;   // a typical wheel notch in pixel mode
+
+// Centre (viewport y) of the text line sitting nearest the guide, or null (e.g. over an image)
+function lineCenterAtGuide() {
+  const sr = prompterScroller.getBoundingClientRect();
+  const guideY = sr.top + sr.height / 2;
+  const tr = prompterText.getBoundingClientRect();
+  const range = document.caretRangeFromPoint && document.caretRangeFromPoint(tr.left + 2, guideY);
+  if (!range || !prompterText.contains(range.startContainer)) return null;
+  let rect = range.getClientRects()[0];
+  if ((!rect || !rect.height) && range.startContainer.nodeType === Node.TEXT_NODE &&
+      range.startOffset < range.startContainer.length) {
+    range.setEnd(range.startContainer, range.startOffset + 1);
+    rect = range.getBoundingClientRect();
+  }
+  if (!rect || !rect.height || Math.abs(rect.top + rect.height / 2 - guideY) > rect.height) return null;
+  return { center: rect.top + rect.height / 2, guideY };
+}
+
+function stepLines(lines) {
+  const lineH = state.fontSize * 1.5;
+  let base;
+  if (wheel.target !== null) {
+    base = wheel.target;                       // stack rapid notches
+  } else {
+    const at = lineCenterAtGuide();            // snap: centre the current line first
+    base = state.offset + (at ? at.center - at.guideY : 0);
+  }
+  computeMaxOffset();
+  wheel.target = Math.max(0, Math.min(state.maxOffset, base + lines * lineH));
+  wheel.from = state.offset;
+  wheel.start = performance.now();
+  wheel.holdUntil = wheel.start + WHEEL_VOICE_HOLD_MS;
+  if (!wheel.rafId) wheel.rafId = requestAnimationFrame(animateWheel);
+}
+
+function animateWheel(now) {
+  const t = Math.min(1, (now - wheel.start) / 120);
+  const ease = 1 - Math.pow(1 - t, 3);
+  state.offset = wheel.from + (wheel.target - wheel.from) * ease;
+  applyOffset();
+  updateProgress();
+  if (t < 1) { wheel.rafId = requestAnimationFrame(animateWheel); return; }
+  wheel.rafId = null;
+  wheel.target = null;
+  state.lastTime = null;   // auto-scroll resumes from here without a jump
+  syncVoiceToOffset();     // Voice Follow resumes matching from this line
+}
+
+prompterView.addEventListener('wheel', (e) => {
+  if (e.target.closest('#hud-overlay, #prompter-seek')) return;
+  e.preventDefault();
+  wakeChrome();
+  const px = e.deltaMode === 1 ? e.deltaY * 40 : e.deltaMode === 2 ? e.deltaY * 800 : e.deltaY;
+  if (!px) return;
+  let lines;
+  if (Math.abs(px) >= WHEEL_STEP_PX / 2) {
+    // Notched wheel: exactly one line per notch (more if the OS coalesced several)
+    lines = Math.sign(px) * Math.max(1, Math.round(Math.abs(px) / WHEEL_STEP_PX));
+    wheel.accum = 0;
+  } else {
+    // Touchpad: small continuous deltas; one line per notch's worth of movement
+    wheel.accum += px;
+    if (Math.abs(wheel.accum) < WHEEL_STEP_PX) return;
+    lines = Math.sign(wheel.accum);
+    wheel.accum -= lines * WHEEL_STEP_PX;
+  }
+  stepLines(lines);
+}, { passive: false });

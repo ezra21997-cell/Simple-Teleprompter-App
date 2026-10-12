@@ -502,7 +502,7 @@ select option { background: var(--raised); }
   border: 1px solid var(--hairline);
   border-radius: var(--radius);
   padding: 12px 14px;
-  width: 220px;
+  width: 232px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.4);
 }
 
@@ -523,7 +523,7 @@ select option { background: var(--raised); }
 .hud-value {
   font-size: 11px;
   color: var(--text-2);
-  width: 34px;
+  width: 44px;
   text-align: right;
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
@@ -606,3 +606,7 @@ select option { background: var(--raised); }
 }
 #voice-status.error::before { background: var(--danger); animation: none; }
 @keyframes pulse { 50% { opacity: .3; } }
+
+/* Highlight lead (under the Voice Follow switch) */
+#voice-lead-setting { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; transition: opacity .2s; }
+#voice-lead-setting.dim { opacity: .4; }
