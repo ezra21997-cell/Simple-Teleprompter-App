@@ -193,8 +193,11 @@ const VoiceFollow = (() => {
         }
         const model = await voskModelPromise;
 
+        // autoGainControl must be off: Chromium's AGC on Windows works by moving the OS input
+        // level, which for USB mics (e.g. Shure MV7) is the mic's hardware gain. This audio only
+        // feeds the recognizer, so leave the user's mic exactly as they set it.
         stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 },
+          audio: { autoGainControl: false, echoCancellation: false, noiseSuppression: true, channelCount: 1 },
         });
         ctx = new AudioContext();
         recognizer = new model.KaldiRecognizer(ctx.sampleRate);

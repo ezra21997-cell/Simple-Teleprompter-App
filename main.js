@@ -44,6 +44,11 @@ function startHook() {
   }
 }
 
+// Never let Chromium's WebRTC audio processing change the system microphone level.
+// On Windows that level is a USB mic's hardware gain (e.g. Shure MV7), and streaming
+// software relies on it staying put.
+app.commandLine.appendSwitch('disable-features', 'WebRtcAllowInputVolumeAdjustment');
+
 // ─── Speech model (Voice Follow) ──────────────────────────────────────────────
 // The renderer loads the offline Vosk model from tpmodel://<file>. The first
 // request downloads it into the user-data folder; later runs work offline.
